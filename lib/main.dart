@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:rflutter_alert/rflutter_alert.dart';
+import 'quiz_brain.dart';
 
 void main() => runApp(Quizzler());
+
+QuizBrain quizBrain = new QuizBrain();
 
 class Quizzler extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.grey.shade900,
+          title: Text('World\'s Toughest Quiz'),
+        ),
         backgroundColor: Colors.grey.shade900,
         body: SafeArea(
           child: Padding(
@@ -25,6 +33,90 @@ class QuizPage extends StatefulWidget {
 }
 
 class _QuizPageState extends State<QuizPage> {
+  List<Flexible> scoreKeeper = [];
+  int correctAnswers = 0;
+  int wrongAnswers = 0;
+
+  void checkAnswer(bool userPickedAnswer) {
+    bool correctAnswer = quizBrain.getCorrectAnswer();
+
+    setState(() {
+      if (quizBrain.isFinished()) {
+        trackScore(userPickedAnswer, correctAnswer);
+        Alert(
+          context: context,
+          type: returnAlertType(),
+          title: "QUIZ OVER",
+          desc: displayMessage(returnAlertType()),
+          buttons: [
+            DialogButton(
+              child: Text(
+                "OK",
+                style: TextStyle(color: Colors.white, fontSize: 20),
+              ),
+              onPressed: () => Navigator.pop(context),
+              width: 120,
+            )
+          ],
+        ).show();
+
+        quizBrain.reset();
+        scoreKeeper.clear();
+        correctAnswers = 0;
+        wrongAnswers = 0;
+      } else {
+        trackScore(userPickedAnswer, correctAnswer);
+        quizBrain.nextQuestion();
+      }
+    });
+  }
+
+  AlertType returnAlertType() {
+    double percent = (correctAnswers / quizBrain.getTotalQuestionsCount()) * 100;
+    if(percent > 90) {
+      return AlertType.success;
+    } else {
+      return AlertType.error;
+    }
+  }
+
+  String displayMessage(AlertType alert) {
+    double percent = (correctAnswers / quizBrain.getTotalQuestionsCount()) * 100;
+    if (alert == AlertType.error) {
+      return "Fail. You may try again.\nTotal Questions - "+
+          (quizBrain.getTotalQuestionsCount()).toString() +
+          "\nWrong Answers - $wrongAnswers\nPercentage - " + percent.toStringAsFixed(2);
+    } else if (alert == AlertType.success) {
+      return "You passed\nTotal Questions - "+
+          (quizBrain.getTotalQuestionsCount()).toString() +
+          "\nWrong Answers - $wrongAnswers\nPercentage - " + percent.toStringAsFixed(2);
+    }
+  }
+
+  void trackScore(bool userPickedAnswer, bool correctAnswer) {
+    if (userPickedAnswer == correctAnswer) {
+      scoreKeeper.add(Flexible(
+        fit: FlexFit.loose,
+        child: Icon(
+          Icons.check,
+          color: Colors.green,
+        ),
+      ));
+      correctAnswers++;
+      print('Bingo, its correct');
+    } else {
+      scoreKeeper.add(Flexible(
+        fit: FlexFit.loose,
+        child: Icon(
+          Icons.close,
+          color: Colors.red,
+        ),
+      ));
+      wrongAnswers++;
+      print('Wrong answer');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -37,7 +129,7 @@ class _QuizPageState extends State<QuizPage> {
             padding: EdgeInsets.all(10.0),
             child: Center(
               child: Text(
-                'This is where the question text will go.',
+                quizBrain.getQuestionText(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 25.0,
@@ -62,6 +154,7 @@ class _QuizPageState extends State<QuizPage> {
               ),
               onPressed: () {
                 //The user picked true.
+                checkAnswer(true);
               },
             ),
           ),
@@ -80,18 +173,15 @@ class _QuizPageState extends State<QuizPage> {
               ),
               onPressed: () {
                 //The user picked false.
+                checkAnswer(false);
               },
             ),
           ),
         ),
-        //TODO: Add a Row here as your score keeper
+        Row(
+          children: scoreKeeper,
+        )
       ],
     );
   }
 }
-
-/*
-question1: 'You can lead a cow down stairs but not up stairs.', false,
-question2: 'Approximately one quarter of human bones are in the feet.', true,
-question3: 'A slug\'s blood is green.', true,
-*/
